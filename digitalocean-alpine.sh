@@ -23,7 +23,7 @@ VwIDAQAB
 EOF
 	echo "https://cdn.layeh.com/alpine/3.9/" >> /etc/apk/repositories
 
-	if ! apk add --no-cache alpine-base linux-virt syslinux grub grub-bios e2fsprogs eudev openssh rng-tools rng-tools-openrc digitalocean-alpine >>"$logfile" 2>>"$logfile"; then
+	if ! apk add --no-cache alpine-base linux-virt syslinux grub grub-bios e2fsprogs eudev openssh rng-tools rng-tools-openrc digitalocean-alpine docker >>"$logfile" 2>>"$logfile"; then
 		echo
 		exit 1
 	fi
@@ -42,7 +42,24 @@ EOF
 	rc-update add --quiet sshd default
 	rc-update add --quiet digitalocean boot
 	rc-update add --quiet rngd boot
-
+	rc-update add --quiet docker boot
+	
+	adduser -SDHs /sbin/nologin dockremap
+	addgroup -S dockremap
+	echo dockremap:$(cat /etc/passwd|grep dockremap|cut -d: -f3):65536 >> /etc/subuid
+	echo dockremap:$(cat /etc/passwd|grep dockremap|cut -d: -f4):65536 >> /etc/subgid
+	mkdir -p /etc/docker
+	cat <<EOF > /etc/docker/daemon.json
+{  
+	"userns-remap": "dockremap",
+	"experimental": false,
+	"live-restore": true,
+	"ipv6": false,
+	"icc": false,
+	"no-new-privileges": false
+}
+EOF
+	chmod 0644 -R /etc/docker
 	sed -i -r -e 's/^(tty[2-6]:)/#\1/' /etc/inittab
 
 	echo "/dev/vdb	/media/cdrom	iso9660	ro	0	0" >> /etc/fstab
